@@ -16,12 +16,12 @@
   // APPLICATION STATE
   // =========================================================================
   const state = {
-    apiUrl: localStorage.getItem('aegis_api_url') || 'http://localhost:5000',
+    apiUrl: localStorage.getItem('aegis_api_url') || 'https://note-backend-db31.onrender.com',
     token: localStorage.getItem('aegis_token') || null,
     user: null,
     activeTab: 'notesTab',
     healthStatus: 'checking',
-    
+
     // Notes state
     notes: {
       items: [],
@@ -231,7 +231,7 @@
   const showToast = (message, type = 'info', duration = 3500) => {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    
+
     let icon = 'ℹ️';
     if (type === 'success') icon = '✅';
     if (type === 'error') icon = '❌';
@@ -366,7 +366,7 @@
       setToken(res.token);
       state.user = res.user;
       showToast(`Welcome back, ${res.user.name}!`, 'success');
-      
+
       updateAuthUI();
       loadNotes();
       loadPosts();
