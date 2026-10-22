@@ -1,0 +1,17 @@
+{
+  "name": "aegisnotes-frontend",
+  "version": "1.0.0",
+  "description": "AegisNotes - Modern Secure RBAC Note-Taking & MongoDB Aggregations UI",
+  "scripts": {
+    "start": "node serve.js",
+    "build": "echo 'Static build ready'"
+  },
+  "keywords": [
+    "html5",
+    "css3",
+    "vanilla-js",
+    "rbac",
+    "mongodb"
+  ],
+  "license": "ISC"
+}

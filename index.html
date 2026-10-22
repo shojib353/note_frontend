@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AegisNotes &mdash; Secure RBAC Notes &amp; Live MongoDB Aggregations</title>
+  <meta name="description" content="Modern, secure note-taking frontend with Role-Based Access Control, MongoDB indexing, public posts, and live pipeline aggregations." />
+  
+  <!-- Modern Typography Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="dark-theme">
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Background Decorative Ambient Lighting -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- Main App Shell -->
+  <div class="app-shell">
+    
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand-logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <div class="logo-meta">
+            <span class="brand-title">Aegis<span class="gradient-text">Notes</span></span>
+            <span class="brand-subtitle">RBAC &bull; Mongo Aggregations</span>
+          </div>
+        </div>
+
+        <!-- API Live Health Badge -->
+        <div id="apiHealthBadge" class="health-badge status-checking" title="Backend Server Status">
+          <span class="pulse-dot"></span>
+          <span id="healthStatusText">Connecting...</span>
+          <span id="healthLatency" class="latency-tag">--ms</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Quick Demo Account Switcher -->
+        <div class="demo-switcher">
+          <span class="demo-label">Demo Users:</span>
+          <div class="demo-buttons">
+            <button class="demo-chip-btn" id="demoAdminBtn" title="Login as System Admin (admin@example.com)">
+              <span class="role-badge admin">Admin</span>
+            </button>
+            <button class="demo-chip-btn" id="demoAliceBtn" title="Login as Alice Johnson (alice@example.com)">
+              <span class="role-badge user">Alice</span>
+            </button>
+            <button class="demo-chip-btn" id="demoBobBtn" title="Login as Bob Smith (bob@example.com)">
+              <span class="role-badge user">Bob</span>
+            </button>
+            <button class="demo-chip-btn" id="demoCharlieBtn" title="Login as Charlie Davis (charlie@example.com)">
+              <span class="role-badge user">Charlie</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Swagger Docs Link -->
+        <a id="swaggerDocsLink" href="http://localhost:5000/api/docs" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="Open Swagger OpenAPI Documentation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          Swagger Docs
+        </a>
+
+        <!-- User Authentication Summary & Logout -->
+        <div id="userProfileHeader" class="user-header-profile">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tab Bar -->
+    <nav class="nav-tabs" aria-label="Main Navigation">
+      <div class="nav-tabs-container">
+        <button class="nav-tab active" data-tab="notesTab" id="tabBtnNotes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span>Notes &amp; RBAC</span>
+          <span id="notesCountBadge" class="nav-count">0</span>
+        </button>
+
+        <button class="nav-tab" data-tab="postsTab" id="tabBtnPosts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Community Posts</span>
+          <span id="postsCountBadge" class="nav-count">0</span>
+        </button>
+
+        <button class="nav-tab" data-tab="aggregationsTab" id="tabBtnAggregations">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Live Aggregations</span>
+          <span class="badge badge-spark">MongoDB</span>
+        </button>
+
+        <button class="nav-tab" data-tab="usersTab" id="tabBtnUsers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span>User Management</span>
+          <span id="adminLockBadge" class="badge badge-admin-only">Admin Only</span>
+        </button>
+
+        <button class="nav-tab" data-tab="authTab" id="tabBtnAuth">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span>Auth &amp; Profile</span>
+        </button>
+
+        <button class="nav-tab" data-tab="systemTab" id="tabBtnSystem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span>API Diagnostics</span>
+        </button>
+      </div>
+
+      <div class="api-endpoint-config">
+        <label for="apiBaseUrlInput" class="sr-only">API Base URL</label>
+        <span class="api-indicator">API:</span>
+        <input type="text" id="apiBaseUrlInput" value="http://localhost:5000" class="api-url-input" title="Backend Base URL" />
+        <button id="saveApiUrlBtn" class="btn btn-icon btn-sm" title="Apply API URL">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+
+      <!-- ======================================================== -->
+      <!-- TAB 1: NOTES & RBAC -->
+      <!-- ======================================================== -->
+      <section id="notesTab" class="tab-panel active">
+        <!-- Notes Action Bar -->
+        <div class="panel-header">
+          <div class="panel-intro">
+            <h2>Secure Notes Vault</h2>
+            <p id="notesRbacNotice" class="panel-desc">
+              Role-Based Access Control: Regular users only see their own notes. Admins can view and manage all notes.
+            </p>
+          </div>
+          <div class="panel-actions">
+            <button id="refreshNotesBtn" class="btn btn-secondary" title="Refresh Notes">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              Refresh
+            </button>
+            <button id="openCreateNoteModalBtn" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              New Note
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="search-filter-card">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="notesSearchInput" placeholder="Filter notes by title or keywords in content..." class="search-input" />
+          </div>
+
+          <!-- Admin-only author filter -->
+          <div id="adminAuthorFilterWrap" class="filter-group hide">
+            <label for="adminAuthorFilterSelect">Author Filter (Admin):</label>
+            <select id="adminAuthorFilterSelect" class="form-select">
+              <option value="">All Authors</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="notesLimitSelect">Page Size:</label>
+            <select id="notesLimitSelect" class="form-select form-select-sm">
+              <option value="6" selected>6</option>
+              <option value="12">12</option>
+              <option value="24">24</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- RBAC Banner Alert -->
+        <div id="rbacBanner" class="info-alert">
+          <div class="alert-icon">🛡️</div>
+          <div class="alert-content">
+            <strong id="rbacBannerTitle">RBAC Status: User Isolation Active</strong>
+            <span id="rbacBannerDesc">You are logged in as a standard user. MongoDB query index <code>{ author: 1, createdAt: -1 }</code> ensures you only read and mutate your own records.</span>
+          </div>
+        </div>
+
+        <!-- Notes Grid -->
+        <div id="notesGrid" class="cards-grid">
+          <!-- Populated by JavaScript -->
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading secure notes...</p>
+          </div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="pagination-footer" id="notesPaginationFooter">
+          <div class="pagination-info" id="notesPaginationInfo">
+            Showing 0 to 0 of 0 notes
+          </div>
+          <div class="pagination-btns">
+            <button id="notesPrevPageBtn" class="btn btn-secondary btn-sm" disabled>Previous</button>
+            <span id="notesCurrentPageIndicator" class="page-indicator">Page 1</span>
+            <button id="notesNextPageBtn" class="btn btn-secondary btn-sm" disabled>Next</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 2: COMMUNITY POSTS FEED -->
+      <!-- ======================================================== -->
+      <section id="postsTab" class="tab-panel">
+        <div class="panel-header">
+          <div class="panel-intro">
+            <h2>Public Community Posts</h2>
+            <p class="panel-desc">
+              Public feed open to all visitors. Demonstrates public indexing on <code>createdAt: -1</code> and user posts retrieval via <code>$lookup</code> aggregation.
+            </p>
+          </div>
+          <div class="panel-actions">
+            <button id="refreshPostsBtn" class="btn btn-secondary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              Refresh Feed
+            </button>
+          </div>
+        </div>
+
+        <div class="posts-layout">
+          <!-- Create Post Card -->
+          <div class="create-post-sidebar">
+            <div class="glass-card create-post-card">
+              <h3>Publish a Post</h3>
+              <p class="card-caption">Share ideas, technical thoughts, or updates with the community.</p>
+
+              <div id="postAuthGuardNotice" class="auth-guard-notice hide">
+                <p>🔒 Please log in to publish a community post.</p>
+                <button id="postQuickLoginBtn" class="btn btn-primary btn-sm">Sign In</button>
+              </div>
+
+              <form id="createPostForm" class="post-form">
+                <div class="form-group">
+                  <label for="postTitleInput">Title</label>
+                  <input type="text" id="postTitleInput" class="form-control" placeholder="e.g. Scaling MongoDB Aggregations" required />
+                </div>
+                <div class="form-group">
+                  <label for="postContentInput">Content</label>
+                  <textarea id="postContentInput" rows="4" class="form-control" placeholder="What are your thoughts or discoveries?" required></textarea>
+                </div>
+                <button type="submit" id="submitPostBtn" class="btn btn-primary btn-block">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                  Publish Public Post
+                </button>
+              </form>
+            </div>
+
+            <!-- Aggregation $lookup hint card -->
+            <div class="glass-card hint-card">
+              <div class="hint-header">
+                <span class="badge badge-cyan">$lookup Pipeline</span>
+                <h4>MongoDB Aggregation</h4>
+              </div>
+              <p>Every post card has a <strong>"View via $lookup"</strong> button that queries <code>/api/posts/user/:userId</code> to demonstrate single-stage cross-collection relational joins in MongoDB!</p>
+            </div>
+          </div>
+
+          <!-- Posts Feed List -->
+          <div class="posts-feed-column">
+            <!-- Active user filter chip if active -->
+            <div id="postsActiveFilterBar" class="active-filter-bar hide">
+              <span>Filtering by user: <strong id="filterAuthorName">Alice Johnson</strong></span>
+              <button id="clearPostsFilterBtn" class="btn btn-xs btn-outline">Clear Filter</button>
+            </div>
+
+            <div id="postsList" class="posts-feed">
+              <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Loading community posts...</p>
+              </div>
+            </div>
+
+            <!-- Posts Pagination -->
+            <div class="pagination-footer" id="postsPaginationFooter">
+              <div class="pagination-info" id="postsPaginationInfo">
+                Showing 0 to 0 of 0 posts
+              </div>
+              <div class="pagination-btns">
+                <button id="postsPrevPageBtn" class="btn btn-secondary btn-sm" disabled>Previous</button>
+                <span id="postsCurrentPageIndicator" class="page-indicator">Page 1</span>
+                <button id="postsNextPageBtn" class="btn btn-secondary btn-sm" disabled>Next</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 3: LIVE MONGODB AGGREGATIONS -->
+      <!-- ======================================================== -->
+      <section id="aggregationsTab" class="tab-panel">
+        <div class="panel-header">
+          <div class="panel-intro">
+            <h2>MongoDB Live Aggregations</h2>
+            <p class="panel-desc">
+              Demonstrates both interview scenarios with single-pipeline constraints and schema index optimization.
+            </p>
+          </div>
+          <div class="panel-actions">
+            <button id="refreshAggregationsBtn" class="btn btn-secondary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              Run Pipelines
+            </button>
+          </div>
+        </div>
+
+        <!-- Sub Tabs for Scenarios -->
+        <div class="aggregation-subnav">
+          <button class="subnav-btn active" id="subnavScenario1Btn" data-scenario="scenario1">
+            <span class="step-num">1</span>
+            <div class="subnav-meta">
+              <strong>Scenario 1: Group by Interests</strong>
+              <small>Constraint: Exactly one collection.aggregate() call</small>
+            </div>
+          </button>
+          <button class="subnav-btn" id="subnavScenario2Btn" data-scenario="scenario2">
+            <span class="step-num">2</span>
+            <div class="subnav-meta">
+              <strong>Scenario 2: User Posts ($lookup)</strong>
+              <small>Constraint: Single pipeline with a $lookup stage</small>
+            </div>
+          </button>
+        </div>
+
+        <!-- SCENARIO 1 CONTAINER -->
+        <div id="scenario1View" class="scenario-container active">
+          <div class="scenario-details-card glass-card">
+            <div class="scenario-meta-row">
+              <span class="badge badge-purple">Pipeline: $unwind &rarr; $group &rarr; $sort &rarr; $project</span>
+              <span class="badge badge-emerald">Index Supported: { interests: 1 }</span>
+              <span class="badge badge-cyan">Endpoint: /api/aggregations/group-by-interests</span>
+            </div>
+            <p class="scenario-summary">
+              Deconstructs the user <code>interests</code> array with <code>$unwind</code>, groups users sharing the same interest together into an accumulator array with <code>$group</code>, and sorts by popularity in a single database aggregation.
+            </p>
+          </div>
+
+          <!-- Interests Visualization Grid -->
+          <div id="interestsGrid" class="interests-grid">
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Executing single collection.aggregate() call...</p>
+            </div>
+          </div>
+
+          <!-- Pipeline Inspector Accordion -->
+          <details class="pipeline-inspector">
+            <summary>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+              </svg>
+              View MongoDB Aggregation Pipeline Source Code
+            </summary>
+            <div class="code-preview">
+<pre><code>User.aggregate([
+  // 1. Deconstruct array
+  { $unwind: '$interests' },
+  // 2. Group by interest
+  {
+    $group: {
+      _id: '$interests',
+      userCount: { $sum: 1 },
+      users: { $push: { _id: '$_id', name: '$name', email: '$email', role: '$role' } }
+    }
+  },
+  // 3. Sort by popularity, then alphabetically
+  { $sort: { userCount: -1, _id: 1 } },
+  // 4. Project clean structure
+  { $project: { _id: 0, interest: '$_id', userCount: 1, users: 1 } }
+]);</code></pre>
+            </div>
+          </details>
+        </div>
+
+        <!-- SCENARIO 2 CONTAINER -->
+        <div id="scenario2View" class="scenario-container hide">
+          <div class="scenario-details-card glass-card">
+            <div class="scenario-meta-row">
+              <span class="badge badge-purple">Pipeline: $match &rarr; $lookup &rarr; $project</span>
+              <span class="badge badge-emerald">Index Supported: { author: 1, createdAt: -1 }</span>
+              <span class="badge badge-cyan">Endpoint: /api/aggregations/user-posts/:userId</span>
+            </div>
+            <p class="scenario-summary">
+              Executes a cross-collection join retrieving a user document along with all public posts they authored using a single <code>$lookup</code> stage.
+            </p>
+          </div>
+
+          <!-- User Picker for $lookup -->
+          <div class="user-picker-card glass-card">
+            <label for="scenario2UserSelect">Select Target User for $lookup:</label>
+            <div class="user-select-row">
+              <select id="scenario2UserSelect" class="form-select"></select>
+              <button id="scenario2ExecuteBtn" class="btn btn-primary">
+                Run Aggregation
+              </button>
+            </div>
+          </div>
+
+          <!-- $lookup Result Card -->
+          <div id="scenario2Result" class="scenario2-result">
+            <div class="empty-state">
+              <p>Select a user above to run the $lookup aggregation pipeline.</p>
+            </div>
+          </div>
+
+          <!-- Pipeline Inspector Accordion -->
+          <details class="pipeline-inspector">
+            <summary>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+              </svg>
+              View MongoDB $lookup Pipeline Source Code
+            </summary>
+            <div class="code-preview">
+<pre><code>User.aggregate([
+  { $match: { _id: targetUserId } },
+  {
+    $lookup: {
+      from: 'posts',
+      localField: '_id',
+      foreignField: 'author',
+      as: 'posts'
+    }
+  },
+  {
+    $project: {
+      _id: 1, name: 1, email: 1, role: 1, interests: 1,
+      totalPosts: { $size: '$posts' },
+      posts: {
+        $map: {
+          input: '$posts',
+          as: 'p',
+          in: { _id: '$$p._id', title: '$$p.title', content: '$$p.content', createdAt: '$$p.createdAt' }
+        }
+      }
+    }
+  }
+]);</code></pre>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 4: USER MANAGEMENT (ADMIN ONLY) -->
+      <!-- ======================================================== -->
+      <section id="usersTab" class="tab-panel">
+        <div class="panel-header">
+          <div class="panel-intro">
+            <h2>User Management Console</h2>
+            <p class="panel-desc">
+              Protected administrative portal (RBAC <code>role: 'admin'</code>). Supports listing users sorted by <code>createdAt: -1</code>, creating, editing, and deleting users.
+            </p>
+          </div>
+          <div class="panel-actions">
+            <button id="refreshUsersBtn" class="btn btn-secondary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              Refresh
+            </button>
+            <button id="openCreateUserModalBtn" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add User
+            </button>
+          </div>
+        </div>
+
+        <!-- Non-Admin Permission Denied Guard -->
+        <div id="usersAdminGuard" class="admin-guard-card glass-card hide">
+          <div class="guard-icon">⛔</div>
+          <h3>Admin Authorization Required</h3>
+          <p>
+            You are currently signed in as a regular user (or not logged in). The <code>/api/users</code> endpoints are restricted by the <code>authorize('admin')</code> middleware.
+          </p>
+          <div class="guard-actions">
+            <button id="switchAdminQuickBtn" class="btn btn-primary">
+              👑 Switch to Admin Account (admin@example.com)
+            </button>
+          </div>
+        </div>
+
+        <!-- Users Table Container -->
+        <div id="usersTableWrap" class="table-card glass-card">
+          <div class="table-responsive">
+            <table class="data-table" id="usersTable">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Interests</th>
+                  <th>Created Date</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <!-- Populated by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Users Pagination -->
+          <div class="pagination-footer" id="usersPaginationFooter">
+            <div class="pagination-info" id="usersPaginationInfo">
+              Showing 0 to 0 of 0 users
+            </div>
+            <div class="pagination-btns">
+              <button id="usersPrevPageBtn" class="btn btn-secondary btn-sm" disabled>Previous</button>
+              <span id="usersCurrentPageIndicator" class="page-indicator">Page 1</span>
+              <button id="usersNextPageBtn" class="btn btn-secondary btn-sm" disabled>Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 5: AUTH & PROFILE HUB -->
+      <!-- ======================================================== -->
+      <section id="authTab" class="tab-panel">
+        <div class="panel-header">
+          <div class="panel-intro">
+            <h2>Authentication &amp; User Profile</h2>
+            <p class="panel-desc">
+              Manage JSON Web Token (JWT) sessions, register new accounts, or update your profile details and interests.
+            </p>
+          </div>
+        </div>
+
+        <div class="auth-grid">
+          <!-- Auth Form Box (When Logged Out or Switching) -->
+          <div class="glass-card auth-card">
+            <div class="auth-card-tabs">
+              <button class="auth-tab-btn active" id="authTabLoginBtn">Sign In</button>
+              <button class="auth-tab-btn" id="authTabRegisterBtn">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form active">
+              <div class="form-group">
+                <label for="loginEmailInput">Email Address</label>
+                <input type="email" id="loginEmailInput" class="form-control" placeholder="user@example.com" required />
+              </div>
+              <div class="form-group">
+                <label for="loginPasswordInput">Password</label>
+                <input type="password" id="loginPasswordInput" class="form-control" placeholder="••••••••" required />
+              </div>
+              <button type="submit" id="submitLoginBtn" class="btn btn-primary btn-block">
+                Sign In to Vault
+              </button>
+
+              <div class="quick-credentials-box">
+                <div class="quick-header">Quick Demo Login:</div>
+                <div class="quick-grid">
+                  <button type="button" class="btn btn-xs btn-outline" id="quickFillAdmin">👑 Admin</button>
+                  <button type="button" class="btn btn-xs btn-outline" id="quickFillAlice">👤 Alice</button>
+                  <button type="button" class="btn btn-xs btn-outline" id="quickFillBob">👤 Bob</button>
+                  <button type="button" class="btn btn-xs btn-outline" id="quickFillCharlie">👤 Charlie</button>
+                </div>
+              </div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" class="auth-form hide">
+              <div class="form-group">
+                <label for="registerNameInput">Full Name</label>
+                <input type="text" id="registerNameInput" class="form-control" placeholder="e.g. David Miller" required />
+              </div>
+              <div class="form-group">
+                <label for="registerEmailInput">Email Address</label>
+                <input type="email" id="registerEmailInput" class="form-control" placeholder="david@example.com" required />
+              </div>
+              <div class="form-group">
+                <label for="registerPasswordInput">Password</label>
+                <input type="password" id="registerPasswordInput" class="form-control" placeholder="••••••••" required />
+              </div>
+              <div class="form-group">
+                <label for="registerRoleSelect">Role</label>
+                <select id="registerRoleSelect" class="form-select">
+                  <option value="user" selected>User (Standard RBAC)</option>
+                  <option value="admin">Admin (System Manager)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="registerInterestsInput">Interests (comma separated)</label>
+                <input type="text" id="registerInterestsInput" class="form-control" placeholder="e.g. chess, hiking, robotics" />
+              </div>
+              <button type="submit" id="submitRegisterBtn" class="btn btn-primary btn-block">
+                Create Account
+              </button>
+            </form>
+          </div>
+
+          <!-- Active Session Profile Card -->
+          <div class="glass-card profile-card">
+            <h3>Active Profile Session</h3>
+            <div id="profileDetailsArea">
+              <!-- Rendered by JS -->
+            </div>
+
+            <!-- Profile Update Form -->
+            <div id="profileUpdateSection" class="profile-update-box hide">
+              <h4>Update Profile Details</h4>
+              <form id="updateProfileForm">
+                <div class="form-group">
+                  <label for="updateProfileNameInput">Full Name</label>
+                  <input type="text" id="updateProfileNameInput" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <label for="updateProfileInterestsInput">Interests (comma separated)</label>
+                  <input type="text" id="updateProfileInterestsInput" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">
+                  Save Profile Changes
+                </button>
+              </form>
+            </div>
+
+            <!-- Decoded JWT Inspector -->
+            <div class="jwt-inspector">
+              <div class="jwt-header">
+                <span>Stored JWT Token</span>
+                <button id="copyTokenBtn" class="btn btn-xs btn-outline">Copy Token</button>
+              </div>
+              <textarea id="jwtTokenDisplay" class="jwt-textarea" readonly rows="3" placeholder="No active token stored"></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 6: API DIAGNOSTICS & SYSTEM -->
+      <!-- ======================================================== -->
+      <section id="systemTab" class="tab-panel">
+        <div class="panel-header">
+          <div class="panel-intro">
+            <h2>API Diagnostics &amp; System Endpoints</h2>
+            <p class="panel-desc">
+              Real-time inspection of backend health, documented Swagger routes, and database index verification.
+            </p>
+          </div>
+          <div class="panel-actions">
+            <button id="runAllHealthChecksBtn" class="btn btn-primary">
+              Run Diagnostics
+            </button>
+          </div>
+        </div>
+
+        <div class="diagnostics-grid">
+          <!-- Live Health Check Card -->
+          <div class="glass-card health-diag-card">
+            <h3>Backend Health (/api/health)</h3>
+            <pre id="healthJsonOutput" class="code-preview-sm"><code>Running health probe...</code></pre>
+          </div>
+
+          <!-- Available Endpoints Matrix -->
+          <div class="glass-card endpoints-card">
+            <h3>Documented Route Handlers</h3>
+            <ul class="endpoint-list">
+              <li><span class="http-badge post">POST</span> <code>/api/auth/register</code> <span class="route-desc">Register new user</span></li>
+              <li><span class="http-badge post">POST</span> <code>/api/auth/login</code> <span class="route-desc">Authenticate &amp; issue JWT</span></li>
+              <li><span class="http-badge get">GET</span> <code>/api/auth/me</code> <span class="route-desc">Fetch authenticated profile</span></li>
+              <li><span class="http-badge get">GET</span> <code>/api/notes</code> <span class="route-desc">List notes (RBAC filtered)</span></li>
+              <li><span class="http-badge post">POST</span> <code>/api/notes</code> <span class="route-desc">Create secure note</span></li>
+              <li><span class="http-badge get">GET</span> <code>/api/posts</code> <span class="route-desc">Public community feed</span></li>
+              <li><span class="http-badge get">GET</span> <code>/api/aggregations/group-by-interests</code> <span class="route-desc">Scenario 1 aggregation</span></li>
+              <li><span class="http-badge get">GET</span> <code>/api/aggregations/user-posts/:id</code> <span class="route-desc">Scenario 2 $lookup</span></li>
+              <li><span class="http-badge get">GET</span> <code>/api/users</code> <span class="route-desc">Admin list users</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-left">
+        <span>AegisNotes &bull; Secure RBAC &amp; High-Performance MongoDB Indexing</span>
+      </div>
+      <div class="footer-right">
+        <span>Built with HTML5, CSS3, &amp; Vanilla JavaScript</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODALS -->
+  <!-- ======================================================== -->
+
+  <!-- 1. CREATE / EDIT NOTE MODAL -->
+  <div id="noteModal" class="modal-backdrop hide" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="noteModalTitle">Create Secure Note</h3>
+        <button class="modal-close-btn" id="closeNoteModalBtn">&times;</button>
+      </div>
+      <form id="noteForm">
+        <input type="hidden" id="noteIdInput" value="" />
+        <div class="form-group">
+          <label for="noteTitleInput">Note Title</label>
+          <input type="text" id="noteTitleInput" class="form-control" placeholder="e.g. Infrastructure Key Rotation" required />
+        </div>
+        <div class="form-group">
+          <label for="noteContentInput">Note Content</label>
+          <textarea id="noteContentInput" rows="6" class="form-control" placeholder="Write confidential content here..." required></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelNoteModalBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveNoteBtn">Save Note</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. VIEW NOTE DETAILS MODAL -->
+  <div id="viewNoteModal" class="modal-backdrop hide" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="viewNoteModalTitle">Note Details</h3>
+        <button class="modal-close-btn" id="closeViewNoteModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="note-detail-meta">
+          <span class="badge" id="viewNoteAuthorBadge">Author</span>
+          <span class="timestamp" id="viewNoteDate">Date</span>
+        </div>
+        <div class="note-detail-content" id="viewNoteContent">
+          <!-- Content rendered here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="closeViewNoteBtn">Close</button>
+        <button type="button" class="btn btn-primary" id="editFromViewNoteBtn">Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. CREATE / EDIT USER MODAL (ADMIN) -->
+  <div id="userModal" class="modal-backdrop hide" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="userModalTitle">Add New System User</h3>
+        <button class="modal-close-btn" id="closeUserModalBtn">&times;</button>
+      </div>
+      <form id="userForm">
+        <input type="hidden" id="userEditIdInput" value="" />
+        <div class="form-group">
+          <label for="userModalNameInput">Full Name</label>
+          <input type="text" id="userModalNameInput" class="form-control" placeholder="e.g. Eleanor Vance" required />
+        </div>
+        <div class="form-group">
+          <label for="userModalEmailInput">Email Address</label>
+          <input type="email" id="userModalEmailInput" class="form-control" placeholder="eleanor@example.com" required />
+        </div>
+        <div class="form-group" id="userModalPasswordGroup">
+          <label for="userModalPasswordInput">Password</label>
+          <input type="password" id="userModalPasswordInput" class="form-control" placeholder="••••••••" />
+          <small class="field-hint" id="userModalPasswordHint">Leave blank to keep existing password when editing</small>
+        </div>
+        <div class="form-group">
+          <label for="userModalRoleSelect">Role</label>
+          <select id="userModalRoleSelect" class="form-select">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="userModalInterestsInput">Interests (comma separated)</label>
+          <input type="text" id="userModalInterestsInput" class="form-control" placeholder="e.g. cryptography, hiking, chess" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelUserModalBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveUserBtn">Save User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. CONFIRM DELETE MODAL -->
+  <div id="confirmModal" class="modal-backdrop hide" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h3 id="confirmModalTitle">Confirm Action</h3>
+        <button class="modal-close-btn" id="closeConfirmModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmModalMessage">Are you sure you want to proceed with this deletion?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelConfirmBtn">Cancel</button>
+        <button type="button" class="btn btn-danger" id="executeConfirmBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
